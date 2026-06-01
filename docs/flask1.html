@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ubuntu VirtualBox + Nginx + Flask App Setup Guide</title>
+
+  <!-- Prism.js CDN for colorful code blocks -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-nginx.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1e293b;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #a78bfa;
+      --green: #22c55e;
+      --orange: #fb923c;
+      --border: rgba(255,255,255,0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 32rem),
+        radial-gradient(circle at top right, rgba(167,139,250,0.18), transparent 30rem),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    .top-clock {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 800;
+      color: white;
+      letter-spacing: 0.02em;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.24);
+    }
+
+    .top-clock span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: linear-gradient(135deg, rgba(56,189,248,0.18), rgba(167,139,250,0.18));
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.45rem 1rem;
+    }
+
+    header {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 4rem 1.25rem 2rem;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.2rem, 5vw, 4.4rem);
+      line-height: 1.05;
+      background: linear-gradient(90deg, #38bdf8, #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      max-width: 820px;
+      margin: 1rem auto 0;
+      font-size: 1.1rem;
+    }
+
+    main {
+      max-width: 1060px;
+      margin: 0 auto 4rem;
+      padding: 0 1.25rem;
+    }
+
+    .toc, section {
+      background: rgba(30, 41, 59, 0.76);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 1.4rem;
+      margin: 1.2rem 0;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+    }
+
+    .toc ul {
+      columns: 2;
+      padding-left: 1.2rem;
+      margin-bottom: 0;
+    }
+
+    a { color: #7dd3fc; }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.7rem;
+      color: #bae6fd;
+      display: flex;
+      gap: 0.65rem;
+      align-items: center;
+    }
+
+    h3 { color: #ddd6fe; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(34,197,94,0.16);
+      border: 1px solid rgba(34,197,94,0.35);
+      color: #bbf7d0;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .note, .warning, .success {
+      border-radius: 16px;
+      padding: 1rem;
+      margin: 1rem 0;
+      border: 1px solid var(--border);
+    }
+
+    .note { background: rgba(56,189,248,0.12); }
+    .warning { background: rgba(251,146,60,0.14); }
+    .success { background: rgba(34,197,94,0.12); }
+
+    pre[class*="language-"] {
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 40px rgba(0,0,0,0.24);
+      overflow: auto;
+      margin: 1rem 0 1.3rem;
+    }
+
+    code {
+      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 0.95rem;
+    }
+
+    .code-title {
+      display: inline-block;
+      margin-top: 0.7rem;
+      margin-bottom: -0.4rem;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #020617;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1rem;
+    }
+
+    .mini-card {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1rem;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem 1rem 4rem;
+    }
+
+    @media (max-width: 720px) {
+      .toc ul { columns: 1; }
+      section, .toc { padding: 1rem; border-radius: 18px; }
+      .top-clock { font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-clock" aria-live="polite">
+    <span>🕒 <time id="currentDateTime">Loading current time...</time></span>
+  </div>
+
+  <header>
+    <h1>Install Ubuntu in VirtualBox, Set Up Nginx, and Host a Flask App</h1>
+    <p class="subtitle">
+      A practical end-to-end guide for creating an Ubuntu virtual machine, installing Nginx,
+      deploying a simple Flask application, and serving it through Nginx using Gunicorn.
+    </p>
+  </header>
+
+  <main>
+    <nav class="toc">
+      <h2>📌 Contents</h2>
+      <ul>
+        <li><a href="#requirements">Requirements</a></li>
+        <li><a href="#virtualbox">Create the Ubuntu VM</a></li>
+        <li><a href="#ubuntu-install">Install Ubuntu</a></li>
+        <li><a href="#networking">Configure Networking</a></li>
+        <li><a href="#nginx">Install Nginx</a></li>
+        <li><a href="#flask">Create Flask App</a></li>
+        <li><a href="#gunicorn">Run Flask with Gunicorn</a></li>
+        <li><a href="#nginx-config">Configure Nginx Reverse Proxy</a></li>
+        <li><a href="#systemd">Create a systemd Service</a></li>
+        <li><a href="#test">Test Everything</a></li>
+      </ul>
+    </nav>
+
+    <section id="requirements">
+      <h2>✅ 1. Requirements</h2>
+      <div class="grid">
+        <div class="mini-card"><strong>VirtualBox</strong><br />Install Oracle VirtualBox on your host machine.</div>
+        <div class="mini-card"><strong>Ubuntu ISO</strong><br />Download an Ubuntu Desktop or Server ISO.</div>
+        <div class="mini-card"><strong>Resources</strong><br />Recommended: 2 CPUs, 4 GB RAM, 25 GB disk.</div>
+        <div class="mini-card"><strong>Internet</strong><br />Needed inside the VM for package installation.</div>
+      </div>
+      <p class="note">This guide uses Ubuntu commands. It works well with Ubuntu Server because it is lightweight, but Ubuntu Desktop is also fine.</p>
+    </section>
+
+    <section id="virtualbox">
+      <h2>🖥️ 2. Create the Ubuntu VM in VirtualBox</h2>
+      <ol>
+        <li>Open <strong>VirtualBox</strong>.</li>
+        <li>Click <strong>New</strong>.</li>
+        <li>Name the VM: <code>Ubuntu-Flask-Nginx</code>.</li>
+        <li>Select the downloaded Ubuntu ISO.</li>
+        <li>Allocate at least <strong>4096 MB RAM</strong>.</li>
+        <li>Allocate at least <strong>2 CPUs</strong>.</li>
+        <li>Create a virtual disk of at least <strong>25 GB</strong>.</li>
+        <li>Finish and start the VM.</li>
+      </ol>
+      <p class="warning"><strong>Tip:</strong> If your machine has limited memory, 2 GB RAM can work for Ubuntu Server.</p>
+    </section>
+
+    <section id="ubuntu-install">
+      <h2>🐧 3. Install Ubuntu</h2>
+      <ol>
+        <li>Choose <strong>Try or Install Ubuntu</strong>.</li>
+        <li>Select your language and keyboard layout.</li>
+        <li>Use default storage options unless you need custom partitions.</li>
+        <li>Create a username and password.</li>
+        <li>Complete installation and reboot.</li>
+      </ol>
+      <p class="note">After rebooting, remove the ISO from the virtual optical drive if VirtualBox asks.</p>
+    </section>
+
+    <section id="networking">
+      <h2>🌐 4. Configure VM Networking</h2>
+      <p>For easy access from your host machine, use <strong>Bridged Adapter</strong> or <strong>NAT with port forwarding</strong>.</p>
+
+      <h3>Option A: Bridged Adapter</h3>
+      <ol>
+        <li>Shut down the VM.</li>
+        <li>Go to <strong>Settings → Network</strong>.</li>
+        <li>Set <strong>Attached to</strong> as <strong>Bridged Adapter</strong>.</li>
+        <li>Start the VM.</li>
+      </ol>
+
+      <span class="code-title">Find VM IP address</span>
+      <pre><code class="language-bash">ip addr show</code></pre>
+
+      <p>Look for an IP like <code>192.168.x.x</code>. You will use it in your browser.</p>
+
+      <h3>Option B: NAT Port Forwarding</h3>
+      <p>Forward host port <code>8080</code> to guest port <code>80</code>.</p>
+      <ol>
+        <li>VM Settings → Network → Advanced → Port Forwarding.</li>
+        <li>Add a rule: Host Port <code>8080</code>, Guest Port <code>80</code>.</li>
+      </ol>
+    </section>
+
+    <section id="nginx">
+      <h2>🚀 5. Install Nginx</h2>
+      <span class="code-title">Update Ubuntu packages</span>
+      <pre><code class="language-bash">sudo apt update
+sudo apt upgrade -y</code></pre>
+
+      <span class="code-title">Install Nginx</span>
+      <pre><code class="language-bash">sudo apt install nginx -y</code></pre>
+
+      <span class="code-title">Start and enable Nginx</span>
+      <pre><code class="language-bash">sudo systemctl start nginx
+sudo systemctl enable nginx
+sudo systemctl status nginx</code></pre>
+
+      <span class="code-title">Allow HTTP through firewall if UFW is enabled</span>
+      <pre><code class="language-bash">sudo ufw allow 'Nginx HTTP'
+sudo ufw status</code></pre>
+
+      <p class="success">Test Nginx by visiting <code>http://VM_IP_ADDRESS</code> or <code>http://localhost:8080</code> if using NAT port forwarding.</p>
+    </section>
+
+    <section id="flask">
+      <h2>🧪 6. Create a Simple Flask App</h2>
+      <span class="code-title">Install Python tools</span>
+      <pre><code class="language-bash">sudo apt install python3 python3-pip python3-venv -y</code></pre>
+
+      <span class="code-title">Create project folder</span>
+      <pre><code class="language-bash">sudo mkdir -p /var/www/flaskapp
+sudo chown -R $USER:$USER /var/www/flaskapp
+cd /var/www/flaskapp</code></pre>
+
+      <span class="code-title">Create and activate virtual environment</span>
+      <pre><code class="language-bash">python3 -m venv venv
+source venv/bin/activate</code></pre>
+
+      <span class="code-title">Install Flask and Gunicorn</span>
+      <pre><code class="language-bash">pip install flask gunicorn</code></pre>
+
+      <span class="code-title">Create app.py</span>
+      <pre><code class="language-python">from flask import Flask
+from datetime import datetime
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return f"""
+    &lt;html&gt;
+      &lt;head&gt;
+        &lt;title&gt;Flask on Ubuntu + Nginx&lt;/title&gt;
+        &lt;style&gt;
+          body {{
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            padding-top: 80px;
+          }}
+          .card {{
+            display: inline-block;
+            background: #1e293b;
+            padding: 32px;
+            border-radius: 18px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+          }}
+          h1 {{ color: #38bdf8; }}
+        &lt;/style&gt;
+      &lt;/head&gt;
+      &lt;body&gt;
+        &lt;div class="card"&gt;
+          &lt;h1&gt;Hello from Flask!&lt;/h1&gt;
+          &lt;p&gt;Served by Gunicorn behind Nginx.&lt;/p&gt;
+          &lt;p&gt;Server time: {datetime.now().strftime('%Y-%m-%d %H:%M')}&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
+    """
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)</code></pre>
+
+      <span class="code-title">Test Flask directly</span>
+      <pre><code class="language-bash">python app.py</code></pre>
+
+      <p>Open <code>http://VM_IP_ADDRESS:5000</code>. Stop the test server with <code>Ctrl + C</code>.</p>
+    </section>
+
+    <section id="gunicorn">
+      <h2>🦄 7. Run Flask with Gunicorn</h2>
+      <span class="code-title">Test Gunicorn</span>
+      <pre><code class="language-bash">cd /var/www/flaskapp
+source venv/bin/activate
+gunicorn --bind 127.0.0.1:8000 app:app</code></pre>
+
+      <p>Gunicorn now serves Flask locally on port <code>8000</code>. Nginx will proxy web traffic to this internal port.</p>
+    </section>
+
+    <section id="nginx-config">
+      <h2>🔁 8. Configure Nginx as a Reverse Proxy</h2>
+      <span class="code-title">Create Nginx site config</span>
+      <pre><code class="language-bash">sudo nano /etc/nginx/sites-available/flaskapp</code></pre>
+
+      <span class="code-title">Nginx config</span>
+      <pre><code class="language-nginx">server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</code></pre>
+
+      <span class="code-title">Enable the site</span>
+      <pre><code class="language-bash">sudo ln -s /etc/nginx/sites-available/flaskapp /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+    </section>
+
+    <section id="systemd">
+      <h2>⚙️ 9. Create a systemd Service for Flask</h2>
+      <span class="code-title">Create service file</span>
+      <pre><code class="language-bash">sudo nano /etc/systemd/system/flaskapp.service</code></pre>
+
+      <span class="code-title">systemd service</span>
+      <pre><code class="language-bash">[Unit]
+Description=Gunicorn instance for Flask app
+After=network.target
+
+[Service]
+User=YOUR_UBUNTU_USERNAME
+Group=www-data
+WorkingDirectory=/var/www/flaskapp
+Environment="PATH=/var/www/flaskapp/venv/bin"
+ExecStart=/var/www/flaskapp/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 app:app
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+      <p class="warning">Replace <code>YOUR_UBUNTU_USERNAME</code> with your actual Ubuntu username.</p>
+
+      <span class="code-title">Enable and start service</span>
+      <pre><code class="language-bash">sudo systemctl daemon-reload
+sudo systemctl start flaskapp
+sudo systemctl enable flaskapp
+sudo systemctl status flaskapp</code></pre>
+    </section>
+
+    <section id="test">
+      <h2>🎉 10. Test the Final Website</h2>
+      <p>Visit your app from the host machine:</p>
+
+      <span class="code-title">Bridged network URL</span>
+      <pre><code class="language-bash">http://VM_IP_ADDRESS</code></pre>
+
+      <span class="code-title">NAT port forwarding URL</span>
+      <pre><code class="language-bash">http://localhost:8080</code></pre>
+
+      <h3>Useful troubleshooting commands</h3>
+      <pre><code class="language-bash">sudo systemctl status nginx
+sudo systemctl status flaskapp
+sudo journalctl -u flaskapp -n 50 --no-pager
+sudo nginx -t
+curl http://127.0.0.1:8000
+curl http://localhost</code></pre>
+
+      <p class="success"><strong>Done:</strong> Ubuntu is running in VirtualBox, Nginx is installed, Flask is served by Gunicorn, and Nginx proxies requests to your app.</p>
+    </section>
+  </main>
+
+  <footer>
+    Built as a standalone HTML guide with Prism.js CDN syntax highlighting and a sticky JavaScript clock.
+  </footer>
+
+  <script>
+    function updateDateTime() {
+      const now = new Date();
+      const formatted = now.toLocaleString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      document.getElementById('currentDateTime').textContent = formatted;
+    }
+
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+  </script>
+</body>
+</html>
